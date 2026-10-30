@@ -2271,7 +2271,8 @@
       heroIdx = i;
       if (manual) startHeroTimer();
       heroTicks = 0;
-      if (!heroShown) { $('bannerHero').classList.add('hero-wait'); setTimeout(() => { if (heroIdx === i) { heroDone(); $('bannerHero').classList.remove('hero-wait'); } }, 5000); }
+      $('bannerHero').classList.add('hero-wait');
+      setTimeout(() => { if (heroIdx === i) { heroDone(); $('bannerHero').classList.remove('hero-wait'); } }, 5000);
       stopHeroTrailer();
       clearTimeout(heroTrailerTimer);
       heroTrailerTimer = setTimeout(() => playHeroTrailer(it, i), 1200);
@@ -2376,7 +2377,7 @@
 
     let heroTrailerCtx = null; // { it, idx, keys, n } para tentar o próximo vídeo se um falhar
 
-    async function playHeroTrailer(it, idx, keyN) {
+    async function playHeroTrailerOld(it, idx, keyN) {
       if (heroIdx !== idx || $('homeScreen').style.display === 'none' || $('bannerHero').style.display === 'none') return;
       // espera a tela de carregamento sumir para o trailer começar na hora em que o banner aparece
       const sp = $('splash');
