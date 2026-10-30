@@ -2376,6 +2376,20 @@
 
     let heroTrailerCtx = null; // { it, idx, keys, n } para tentar o próximo vídeo se um falhar
 
+    // centraliza o vídeo 16:9 no banner (cobre o banner todo, cortando as sobras por igual dos dois lados)
+    function fitHeroVideo() {
+      const v = $('heroVideo'); if (!v) return;
+      const f = v.querySelector('iframe'); if (!f) return;
+      const W = v.clientWidth, H = v.clientHeight;
+      if (!W || !H) return;
+      const w = Math.max(W, H * 16 / 9) * 1.04, h = Math.max(H, W * 9 / 16) * 1.04;
+      f.style.width = w + 'px'; f.style.height = h + 'px';
+      f.style.left = ((W - w) / 2) + 'px'; f.style.top = ((H - h) / 2) + 'px';
+      f.style.transform = 'none';
+    }
+    window.addEventListener('resize', fitHeroVideo);
+    try { if (window.ResizeObserver) new ResizeObserver(fitHeroVideo).observe($('bannerHero')); } catch (e) {}
+
     async function playHeroTrailer(it, idx, keyN) {
       if (heroIdx !== idx || $('homeScreen').style.display === 'none' || $('bannerHero').style.display === 'none') return;
       // espera a tela de carregamento sumir para o trailer começar na hora em que o banner aparece
