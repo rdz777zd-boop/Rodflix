@@ -2377,7 +2377,7 @@
 
     let heroTrailerCtx = null; // { it, idx, keys, n } para tentar o próximo vídeo se um falhar
 
-    async function playHeroTrailerOld(it, idx, keyN) {
+    async function playHeroTrailer(it, idx, keyN) {
       if (heroIdx !== idx || $('homeScreen').style.display === 'none' || $('bannerHero').style.display === 'none') return;
       // espera a tela de carregamento sumir para o trailer começar na hora em que o banner aparece
       const sp = $('splash');
@@ -2408,7 +2408,7 @@
     // pré-carrega a lista de trailers de todos os banners para o vídeo começar sem espera
     function preloadHeroTrailers() { heroList.forEach(it => { getTrailerKeys(it); }); }
 
-    function toggleHeroSound() {
+    function toggleHeroSoundOld() {
       if (!heroFrame) return;
       heroMuted = !heroMuted;
       try { heroFrame.contentWindow.postMessage(JSON.stringify({ event: 'command', func: heroMuted ? 'mute' : 'unMute', args: '' }), '*'); } catch (e) {}
