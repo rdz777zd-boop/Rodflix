@@ -2367,7 +2367,73 @@
       return keys;
     }
 
+    let heroPlayer = null, ytPromise = null;
+
+    function loadYT() {
+      if (window.YT && window.YT.Player) return Promise.resolve();
+      if (ytPromise) return ytPromise;
+      ytPromise = new Promise((res, rej) => {
+        const prev = window.onYouTubeIframeAPIReady;
+        window.onYouTubeIframeAPIReady = () => { try { if (prev) prev(); } catch (e) {} res(); };
+        const t = document.createElement('script');
+        t.src = 'https://www.youtube.com/iframe_api';
+        t.onerror = () => { ytPromise = null; rej(new Error('yt')); };
+        document.head.appendChild(t);
+        setTimeout(() => { if (!(window.YT && window.YT.Player)) { ytPromise = null; rej(new Error('yt timeout')); } }, 10000);
+      });
+      return ytPromise;
+    }
+
     function stopHeroTrailer() {
+      clearTimeout(heroLoadTimeout);
+      if (heroPlayer) { try { heroPlayer.destroy(); } catch (e) {} heroPlayer = null; }
+      if (heroFrame) { try { heroFrame.remove(); } catch (e) {} heroFrame = null; }
+      const v = $('heroVideo'); if (v) { v.classList.remove('on'); v.innerHTML = ''; }
+      const b = $('heroSound'); if (b) { b.style.display = 'none'; b.innerText = 'Ativar som'; }
+      heroMuted = true;
+    }
+
+    async function playHeroTrailer(it, idx, keyN) {
+      if (heroIdx !== idx || $('homeScreen').style.display === 'none' || $('bannerHero').style.display === 'none') return;
+      // espera a tela de carregamento sumir para o trailer começar na hora em que o banner aparece
+      const sp = $('splash');
+      if (sp && !sp.classList.contains('out')) { clearTimeout(heroTrailerTimer); heroTrailerTimer = setTimeout(() => playHeroTrailer(it, idx, keyN), 400); return; }
+      const keys = await getTrailerKeys(it);
+      const n = keyN || 0;
+      if (!keys[n] || heroIdx !== idx || $('bannerHero').style.display === 'none') return;
+      try { await loadYT(); } catch (e) { console.warn('YouTube API indisponível', e); return; }
+      if (heroIdx !== idx || $('bannerHero').style.display === 'none') return;
+      const key = keys[n];
+      stopHeroTrailer();
+      heroTrailerCtx = { it, idx, n, total: keys.length };
+      const holder = document.createElement('div');
+      holder.id = 'heroYT' + Date.now();
+      $('heroVideo').appendChild(holder);
+      try {
+        heroPlayer = new YT.Player(holder.id, {
+          videoId: key,
+          playerVars: { autoplay: 1, mute: 1, controls: 0, loop: 1, playlist: key, playsinline: 1, modestbranding: 1, rel: 0, iv_load_policy: 3, disablekb: 1, fs: 0 },
+          events: {
+            onReady: (e) => { try { e.target.mute(); e.target.playVideo(); } catch (x) {} },
+            onStateChange: (e) => {
+              if (e.data === 1) { $('heroVideo').classList.add('on'); $('heroSound').style.display = ''; }
+              if (e.data === -1 || e.data === 5) { try { e.target.playVideo(); } catch (x) {} }
+            },
+            onError: (e) => { console.warn('Erro no trailer', e && e.data); heroTrailerFailed(); }
+          }
+        });
+      } catch (e) { heroTrailerFailed(); return; }
+      heroLoadTimeout = setTimeout(() => { if (!$('heroVideo').classList.contains('on')) heroTrailerFailed(); }, 10000);
+    }
+
+    function toggleHeroSound() {
+      if (!heroPlayer) return;
+      heroMuted = !heroMuted;
+      try { if (heroMuted) heroPlayer.mute(); else { heroPlayer.unMute(); heroPlayer.setVolume(100); } } catch (e) {}
+      $('heroSound').innerText = heroMuted ? 'Ativar som' : 'Silenciar';
+    }
+
+    function stopHeroTrailerOld() {
       clearTimeout(heroLoadTimeout);
       if (heroFrame) { heroFrame.remove(); heroFrame = null; }
       const v = $('heroVideo'); if (v) v.classList.remove('on');
@@ -2408,7 +2474,7 @@
     // pré-carrega a lista de trailers de todos os banners para o vídeo começar sem espera
     function preloadHeroTrailers() { heroList.forEach(it => { getTrailerKeys(it); }); }
 
-    function toggleHeroSoundOld() {
+    function toggleHeroSound() {
       if (!heroFrame) return;
       heroMuted = !heroMuted;
       try { heroFrame.contentWindow.postMessage(JSON.stringify({ event: 'command', func: heroMuted ? 'mute' : 'unMute', args: '' }), '*'); } catch (e) {}
