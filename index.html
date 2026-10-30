@@ -2224,7 +2224,7 @@
       heroReadyResolve();
     }
     function revealHeroText(i) {
-      setTimeout(() => { if (i === undefined || heroIdx === i) $('bannerHero').classList.remove('hero-wait'); }, 650);
+      setTimeout(() => { if (i === undefined || heroIdx === i) $('bannerHero').classList.remove('hero-wait'); }, 0);
     }
     setTimeout(heroDone, 8000); // segurança: nunca deixa o banner escondido
 
