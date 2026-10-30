@@ -2599,40 +2599,11 @@
       $('heroSound').innerText = heroMuted ? 'Ativar som' : 'Silenciar';
     }
 
-    /* ===== SEM ANÚNCIOS: o player roda "isolado" e não consegue abrir pop-ups, novas abas nem redirecionar a página ===== */
-    const AD_SANDBOX = 'allow-scripts allow-same-origin allow-forms allow-presentation allow-orientation-lock';
-    window.__adBlock = (function () { try { return localStorage.getItem('rf_adblock') !== 'off'; } catch (e) { return true; } })();
-
-    function applyAdBlock() {
-      const f = $('videoIframe'); if (!f) return;
-      if (window.__adBlock) f.setAttribute('sandbox', AD_SANDBOX); else f.removeAttribute('sandbox');
-      const b = $('adBlockBtn');
-      if (b) b.innerText = window.__adBlock ? 'Bloqueio de anúncios: ATIVO' : 'Bloqueio de anúncios: DESLIGADO';
-    }
-
-    function toggleAdBlock() {
-      window.__adBlock = !window.__adBlock;
-      try { localStorage.setItem('rf_adblock', window.__adBlock ? 'on' : 'off'); } catch (e) {}
-      applyAdBlock();
-      if (typeof currentItem !== 'undefined' && currentItem) loadPlayer();
-    }
-
     function loadPlayer() {
-      applyAdBlock();
+      const f = $('videoIframe');
+      if (f) f.removeAttribute('sandbox');
       $('videoIframe').src = getPlayerURL();
     }
-
-    (function () {
-      const pills = document.querySelector('.server-pills');
-      if (pills && !$('adBlockBtn')) {
-        const b = document.createElement('button');
-        b.type = 'button'; b.id = 'adBlockBtn'; b.className = 'server-btn';
-        b.style.cssText = 'margin-top:10px;width:100%;';
-        b.onclick = toggleAdBlock;
-        pills.parentNode.insertBefore(b, pills.nextSibling);
-      }
-      applyAdBlock();
-    })();
 
     let catalogReady = false;
     (function () {
