@@ -2224,7 +2224,7 @@
       heroReadyResolve();
     }
     function revealHeroText(i) {
-      setTimeout(() => { if (i === undefined || heroIdx === i) $('bannerHero').classList.remove('hero-wait'); }, 0);
+      setTimeout(() => { if (i === undefined || heroIdx === i) $('bannerHero').classList.remove('hero-wait'); }, 650);
     }
     setTimeout(heroDone, 8000); // segurança: nunca deixa o banner escondido
 
@@ -2271,8 +2271,7 @@
       heroIdx = i;
       if (manual) startHeroTimer();
       heroTicks = 0;
-      $('bannerHero').classList.add('hero-wait');
-      setTimeout(() => { if (heroIdx === i) { heroDone(); $('bannerHero').classList.remove('hero-wait'); } }, 5000);
+      if (!heroShown) { $('bannerHero').classList.add('hero-wait'); setTimeout(() => { if (heroIdx === i) { heroDone(); $('bannerHero').classList.remove('hero-wait'); } }, 5000); }
       stopHeroTrailer();
       clearTimeout(heroTrailerTimer);
       heroTrailerTimer = setTimeout(() => playHeroTrailer(it, i), 1200);
