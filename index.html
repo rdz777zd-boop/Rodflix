@@ -1872,15 +1872,7 @@
       }
     }
 
-    function saveResume() {
-      try {
-        if (!currentItem) return;
-        localStorage.setItem('rf_resume', JSON.stringify({ item: currentItem, season: currentSeason, episode: currentEpisode, server: currentServer, t: Date.now() }));
-      } catch (e) {}
-    }
-
     function loadPlayer() {
-      saveResume();
       $('videoIframe').src = getPlayerURL();
     }
 
@@ -1905,6 +1897,12 @@
     }
 
     function goHome() {
+      if (history.state && history.state.rf === 'watch') { history.back(); return; }
+      showHome();
+    }
+
+    function showHome() {
+      try { localStorage.removeItem('rf_resume'); } catch (e) {}
       $('videoIframe').src = '';
       $('watchScreen').style.display = 'none';
       $('homeScreen').style.display = 'block';
