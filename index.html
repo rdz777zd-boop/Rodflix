@@ -3279,5 +3279,171 @@
       window.addEventListener('online', check);
     })();
   </script>
+
+  <!-- ===== EXTRAS: continuar assistindo, vistos, filtros, próximo ep, servidor, novos eps, reportar ===== -->
+  <style>
+    .player-tools { flex-wrap: wrap; }
+    .ep-btn.seen { opacity: .55; }
+    #contRow { margin: 0 18px 18px; max-width: 1100px; }
+    @media (min-width:1100px) { #contRow { margin: 0 auto 18px; } }
+    .cont-title { font-size: 16px; font-weight: 800; color: #f6d365; margin-bottom: 10px; border-left: 4px solid #d4af37; padding-left: 10px; }
+    .cont-scroll { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px; scrollbar-width: none; }
+    .cont-scroll::-webkit-scrollbar { display: none; }
+    .cont-card { position: relative; flex: 0 0 130px; border-radius: 12px; overflow: hidden; background: #151515; border: 1px solid rgba(212,175,55,.3); cursor: pointer; }
+    .cont-card img { width: 100%; height: 175px; object-fit: cover; display: block; }
+    .cont-info { padding: 6px 8px 8px; display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
+    .cont-info b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .cont-info span { color: #f6d365; font-size: 11px; }
+    .cont-x { position: absolute; top: 5px; right: 5px; width: 24px; height: 24px; border-radius: 50%; border: none; background: rgba(0,0,0,.7); color: #fff; font-size: 11px; cursor: pointer; }
+    #fBar { display: none; gap: 8px; margin: 0 18px 14px; max-width: 1100px; }
+    @media (min-width:1100px) { #fBar { margin: 0 auto 14px; } }
+    #fBar select { flex: 1; min-width: 0; background: #0f0f0f; color: #f6d365; border: 1px solid rgba(212,175,55,.4); border-radius: 10px; padding: 9px 8px; font-size: 12px; font-weight: 700; }
+    .card-new { position: absolute; bottom: 6px; left: 6px; background: linear-gradient(135deg,#f6d365,#d4af37); color: #0a0a0a; font-size: 10px; font-weight: 900; padding: 3px 8px; border-radius: 12px; }
+  </style>
+  <script>
+  (function () {
+    var K = function (n) { return libKey(n); };
+    var kid = function (it) { return (isTvItem(it) ? 'tv:' : 'mv:') + it.id; };
+    var $$ = function (id) { return document.getElementById(id); };
+
+    /* ---------- progresso (Continuar assistindo) ---------- */
+    function prog() { return lsGet(K('prog'), {}); }
+    function recordProg() {
+      if (!currentItem) return;
+      var p = prog(); p[kid(currentItem)] = { item: slimLib(currentItem), s: currentSeason, e: currentEpisode, t: Date.now() };
+      var o = {}; Object.keys(p).sort(function (a, b) { return p[b].t - p[a].t; }).slice(0, 20).forEach(function (k) { o[k] = p[k]; });
+      lsSet(K('prog'), o);
+    }
+    function renderCont() {
+      var box = $$('contRow');
+      if (!box) { box = document.createElement('div'); box.id = 'contRow'; document.querySelector('#homeScreen .section-title').before(box); }
+      var list = Object.values(prog()).sort(function (a, b) { return b.t - a.t; });
+      if (!(currentCat === 'todos' && !searchQuery && !currentLib) || !list.length) { box.style.display = 'none'; return; }
+      box.style.display = ''; box.innerHTML = '<div class="cont-title">Continuar assistindo</div><div class="cont-scroll"></div>';
+      var sc = box.lastChild;
+      list.forEach(function (x) {
+        var it = x.item, tv = isTvItem(it), d = document.createElement('div');
+        d.className = 'cont-card';
+        d.innerHTML = '<img loading="lazy" alt="" src="https://image.tmdb.org/t/p/w342' + it.poster_path + '"><div class="cont-info"><b>' + esc(it.title || it.name) + '</b><span>' + (tv ? 'T' + x.s + ' • Ep ' + x.e : 'Filme') + '</span></div><button type="button" class="cont-x" aria-label="Remover">✕</button>';
+        d.onclick = function (ev) {
+          if (ev.target.closest('.cont-x')) { ev.stopPropagation(); var q = prog(); delete q[kid(it)]; lsSet(K('prog'), q); renderCont(); return; }
+          startWatching(it, true, tv ? { season: x.s, episode: x.e } : {});
+        };
+        sc.appendChild(d);
+      });
+    }
+
+    /* ---------- episódios vistos ---------- */
+    function seenMap() { return lsGet(K('seen'), {}); }
+    function markSeen(it, s, e) {
+      if (!it || !isTvItem(it)) return;
+      var m = seenMap(), k = String(it.id), v = s + ':' + e; m[k] = m[k] || [];
+      if (m[k].indexOf(v) < 0) { m[k].push(v); lsSet(K('seen'), m); }
+    }
+    var epStart = 0, seenT = null, promptT = null;
+    function armEp() {
+      clearTimeout(seenT); clearTimeout(promptT); epStart = Date.now();
+      var it = currentItem, s = currentSeason, e = currentEpisode;
+      seenT = setTimeout(function () { markSeen(it, s, e); decorateEps(); }, 5 * 60 * 1000);
+      var mins = (it && (it.genre_ids || []).indexOf(16) >= 0) ? 24 : 45;
+      promptT = setTimeout(function () {
+        var w = $$('watchScreen');
+        if (it === currentItem && w.style.display === 'flex' && epTarget(1)) toast('Terminou? Toque em "Próximo episódio ▶"', 6000);
+      }, mins * 60 * 1000);
+    }
+    function leaveEp() { if (epStart && Date.now() - epStart > 120000) markSeen(currentItem, currentSeason, currentEpisode); }
+    function decorateEps() {
+      if (!currentItem || !isTvItem(currentItem)) return;
+      var l = seenMap()[String(currentItem.id)] || [];
+      document.querySelectorAll('#episodesGrid .ep-btn').forEach(function (b, i) {
+        var done = l.indexOf(currentSeason + ':' + (i + 1)) >= 0;
+        b.classList.toggle('seen', done); b.textContent = 'Ep ' + (i + 1) + (done ? ' ✓' : '');
+      });
+    }
+
+    /* ---------- botões do player: próximo ep, outro servidor, reportar ---------- */
+    document.querySelector('.player-tools').insertAdjacentHTML('beforeend',
+      '<button type="button" class="btn-fs" id="btnNextEp" onclick="nextEp()">Próximo episódio ▶</button>' +
+      '<button type="button" class="btn-fs" onclick="nextServer()">Não carregou? Outro servidor</button>' +
+      '<button type="button" class="btn-fs" onclick="reportProblem()">⚠ Reportar problema</button>');
+    function toolsUpd() { $$('btnNextEp').style.display = (currentItem && isTvItem(currentItem) && epTarget(1)) ? '' : 'none'; }
+    window.nextEp = function () { markSeen(currentItem, currentSeason, currentEpisode); stepEpisode(1); };
+    window.nextServer = function () { var n = (currentServer + 1) % 5; setServer(n, true); toast('Trocando para o Servidor ' + (n + 1)); };
+    window.reportProblem = async function () {
+      if (!currentItem) return;
+      var msg = 'Problema no RODFLIX: ' + (currentItem.title || currentItem.name) + (isTvItem(currentItem) ? ' T' + currentSeason + ' Ep' + currentEpisode : '') + ' | Servidor ' + (currentServer + 1) + ' | ' + getPlayerURL();
+      try { if (navigator.share) { await navigator.share({ text: msg }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+      try { await navigator.clipboard.writeText(msg); toast('Relatório copiado. Envie ao administrador.'); } catch (e) { toast(msg, 6000); }
+    };
+
+    /* ---------- filtros e ordenação ---------- */
+    var F = { g: '', y: '', s: '' };
+    var GM = { 'Ação': [28, 10759], 'Comédia': [35, 35], 'Drama': [18, 18], 'Ficção': [878, 10765], 'Terror/Mistério': [27, 9648], 'Crime': [80, 80] };
+    var yr = new Date().getFullYear(), yopts = '<option value="">Ano</option>';
+    for (var y = yr; y >= 1990; y--) yopts += '<option>' + y + '</option>';
+    var bar = document.createElement('div'); bar.id = 'fBar';
+    bar.innerHTML = '<select id="fG"><option value="">Gênero</option>' + Object.keys(GM).map(function (g) { return '<option>' + g + '</option>'; }).join('') + '</select>' +
+      '<select id="fY">' + yopts + '</select>' +
+      '<select id="fS"><option value="">Populares</option><option value="nota">Melhor nota</option><option value="novos">Lançamentos</option></select>';
+    document.querySelector('#homeScreen .search-box').after(bar);
+    bar.addEventListener('change', function () { F.g = $$('fG').value; F.y = $$('fY').value; F.s = $$('fS').value; currentPage = 1; fetchCatalog(currentCat, 1, false); });
+    var _fetch = window.fetch.bind(window);
+    window.fetch = function (u, o) {
+      if (typeof u === 'string' && u.indexOf('/discover/') >= 0 && (F.g || F.y || F.s)) {
+        try {
+          var x = new URL(u), tv = x.pathname.indexOf('/discover/tv') >= 0;
+          if (F.g) { var id = GM[F.g][tv ? 1 : 0], c = x.searchParams.get('with_genres'); x.searchParams.set('with_genres', c ? c + ',' + id : String(id)); }
+          if (F.y) x.searchParams.set(tv ? 'first_air_date_year' : 'primary_release_year', F.y);
+          if (F.s === 'nota') { x.searchParams.set('sort_by', 'vote_average.desc'); x.searchParams.set('vote_count.gte', '300'); }
+          if (F.s === 'novos') { x.searchParams.set('sort_by', tv ? 'first_air_date.desc' : 'primary_release_date.desc'); x.searchParams.set(tv ? 'first_air_date.lte' : 'primary_release_date.lte', new Date().toISOString().slice(0, 10)); x.searchParams.set('vote_count.gte', '20'); }
+          u = x.toString();
+        } catch (e) {}
+      }
+      return _fetch(u, o);
+    };
+    function barUpd() { bar.style.display = (currentCat !== 'todos' && !searchQuery && !currentLib) ? 'flex' : 'none'; }
+
+    /* ---------- selo NOVO nos favoritos ---------- */
+    var newEps = {};
+    function badgeFavs() {
+      if (currentLib !== 'favs') return;
+      var cards = document.querySelectorAll('#mainGrid .card-btn');
+      favs.forEach(function (f, i) {
+        if (newEps[f.id] && isTvItem(f) && cards[i]) {
+          var w = cards[i].querySelector('.card-img-wrap');
+          if (w && !w.querySelector('.card-new')) w.insertAdjacentHTML('beforeend', '<span class="card-new">NOVO</span>');
+        }
+      });
+    }
+    async function checkNew() {
+      var seen = lsGet(K('favseen'), {}), rec = {};
+      await Promise.all(favs.filter(isTvItem).slice(0, 15).map(async function (f) {
+        try {
+          var d = await (await fetch(TMDB_BASE + '/tv/' + f.id + '?api_key=' + TMDB_KEY + '&language=pt-BR')).json();
+          if (d.last_air_date && Date.now() - new Date(d.last_air_date).getTime() < 14 * 864e5 && seen[f.id] !== d.last_air_date) rec[f.id] = d.last_air_date;
+        } catch (e) {}
+      }));
+      newEps = rec; badgeFavs();
+      var n = Object.keys(rec).length;
+      if (n) toast(n + (n === 1 ? ' favorito tem' : ' favoritos têm') + ' episódio novo', 5000);
+    }
+    setTimeout(checkNew, 4000);
+
+    /* ---------- encaixa nas funções existentes ---------- */
+    function wrap(name, before, after) {
+      var orig = window[name];
+      window[name] = function () { if (before) before(); var r = orig.apply(this, arguments); if (after) { if (r && r.then) r.then(after); else after(); } return r; };
+    }
+    wrap('startWatching', null, function () {
+      if (currentItem && newEps[currentItem.id]) { var m = lsGet(K('favseen'), {}); m[currentItem.id] = newEps[currentItem.id]; lsSet(K('favseen'), m); delete newEps[currentItem.id]; }
+      recordProg(); armEp(); toolsUpd(); decorateEps();
+    });
+    wrap('goToEpisode', leaveEp, function () { recordProg(); armEp(); toolsUpd(); decorateEps(); });
+    wrap('renderEpisodes', null, decorateEps);
+    ['switchCategory', 'closeMini', 'minimizePlayer', 'executeSearch'].forEach(function (n) { wrap(n, null, function () { renderCont(); barUpd(); }); });
+    wrap('showLibrary', null, function () { renderCont(); barUpd(); badgeFavs(); });
+    renderCont(); barUpd();
+  })();
+  </script>
 </body>
 </html>
