@@ -2612,7 +2612,8 @@
       if (b) b.innerText = window.__adBlock ? 'Bloqueio de anúncios: ATIVO' : 'Bloqueio de anúncios: DESLIGADO';
     }
 
-    function toggleAdBlock() {
+    /* toggleAdBlock removido */
+    function toggleAdBlock_DEPRECATED() {
       window.__adBlock = !window.__adBlock;
       try { localStorage.setItem('rf_adblock', window.__adBlock ? 'on' : 'off'); } catch (e) {}
       applyAdBlock();
