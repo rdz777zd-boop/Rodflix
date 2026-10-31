@@ -956,7 +956,31 @@
     </div>
 
     <div class="player-box" id="playerContainer">
-      <iframe id="videoIframe" src="" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="origin"></iframe>
+      <iframe id="videoIframe" src="" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen webkitallowfullscreen mozallowfullscreen referrerpolicy="origin"></iframe>
+      <button type="button" id="btnRodFs" onclick="rodFullscreen()" aria-label="Tela cheia" style="position:absolute;top:8px;right:8px;z-index:5;width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,.35);background:rgba(0,0,0,.55);color:#fff;font-size:20px;line-height:1;cursor:pointer;">&#x26F6;</button>
+      <style>
+        #playerContainer:fullscreen { height:100vh !important; max-height:none !important; width:100% !important; }
+        #playerContainer:-webkit-full-screen { height:100vh !important; max-height:none !important; width:100% !important; }
+      </style>
+      <script>
+        function rodFullscreen() {
+          var box = document.getElementById('playerContainer');
+          var d = document;
+          var cur = d.fullscreenElement || d.webkitFullscreenElement;
+          if (cur) {
+            try { (d.exitFullscreen || d.webkitExitFullscreen).call(d); } catch (e) {}
+            try { screen.orientation.unlock(); } catch (e) {}
+            return;
+          }
+          var req = box.requestFullscreen || box.webkitRequestFullscreen;
+          if (!req) return;
+          var p = req.call(box);
+          var lock = function () {
+            try { screen.orientation.lock('landscape').catch(function () {}); } catch (e) {}
+          };
+          if (p && p.then) { p.then(lock).catch(function () {}); } else { lock(); }
+        }
+      </script>
     </div>
 
     <!-- TEMPORADAS E EPISÓDIOS -->
