@@ -1872,7 +1872,15 @@
       }
     }
 
+    function saveResume() {
+      try {
+        if (!currentItem) return;
+        localStorage.setItem('rf_resume', JSON.stringify({ item: currentItem, season: currentSeason, episode: currentEpisode, server: currentServer, t: Date.now() }));
+      } catch (e) {}
+    }
+
     function loadPlayer() {
+      saveResume();
       $('videoIframe').src = getPlayerURL();
     }
 
@@ -2570,25 +2578,6 @@
     })();
 
     window.addEventListener('beforeunload', () => { try { if (peer) peer.destroy(); } catch (e) {} });
-
-    /* Botao voltar do celular: sai do player em vez de reiniciar o app */
-    window.addEventListener('popstate', () => {
-      const w = $('watchScreen');
-      if (w && w.style.display === 'flex' && !(history.state && history.state.rf === 'watch')) showHome();
-    });
-
-    /* Se o player mandou o app para outra pagina e o usuario voltou, reabre o que estava assistindo */
-    (function resumeWatch() {
-      try {
-        const onWatch = !!(history.state && history.state.rf === 'watch');
-        let r = null;
-        try { r = JSON.parse(localStorage.getItem('rf_resume') || 'null'); } catch (e) {}
-        if (!onWatch) return;
-        if (!r || !r.item || Date.now() - r.t > 30 * 60 * 1000) { history.replaceState(null, ''); return; }
-        currentServer = r.server || 0;
-        startWatching(r.item, false, { season: r.season, episode: r.episode });
-      } catch (e) {}
-    })();
   </script>
 </body>
 </html>
