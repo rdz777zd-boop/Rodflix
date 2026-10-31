@@ -961,6 +961,16 @@
       border-radius: 50%; border: 1px solid rgba(212,175,55,.6); background: rgba(0,0,0,.6);
       color: #f6d365; font-size: 16px; font-weight: 900; cursor: pointer; opacity: .75;
     }
+    .fs-arrow {
+      display: none; position: absolute; top: 50%; transform: translateY(-50%); z-index: 5; width: 46px; height: 46px;
+      border-radius: 50%; border: 1px solid rgba(212,175,55,.6); background: rgba(0,0,0,.6);
+      color: #f6d365; font-size: 22px; font-weight: 900; line-height: 1; cursor: pointer; opacity: .6; padding: 0;
+    }
+    .fs-arrow.left { left: 10px; } .fs-arrow.right { right: 10px; }
+    .fs-arrow:active { transform: translateY(-50%) scale(.92); opacity: 1; }
+    .fs-arrow:disabled { opacity: .2; pointer-events: none; }
+    .player-box.is-tv:fullscreen .fs-arrow { display: grid; place-items: center; }
+    .player-box.is-tv:-webkit-full-screen .fs-arrow { display: grid; place-items: center; }
     .player-box:fullscreen .fs-exit { display: grid; place-items: center; }
     .player-box:-webkit-full-screen .fs-exit { display: grid; place-items: center; }
     /* ===== CONTAS NO APARELHO ===== */
@@ -1230,6 +1240,8 @@
         <span><button type="button" aria-label="Expandir" onclick="expandMini()">⤢</button><button type="button" aria-label="Fechar" onclick="closeMini()">✕</button></span>
       </div>
       <iframe id="videoIframe" src="" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen referrerpolicy="origin"></iframe>
+      <button type="button" class="fs-arrow left" id="fsPrev" aria-label="Episódio anterior" onclick="stepEpisode(-1)">❮</button>
+      <button type="button" class="fs-arrow right" id="fsNext" aria-label="Próximo episódio" onclick="stepEpisode(1)">❯</button>
       <button type="button" class="fs-exit" aria-label="Sair da tela cheia" onclick="toggleFullscreen()">✕</button>
     </div>
 
@@ -2170,7 +2182,35 @@
       }
       $('nowPlayingSubtitle').innerText = `Temporada ${currentSeason} • Episódio ${currentEpisode}`;
       loadPlayer();
+      updateFsArrows();
       if (broadcast) sendAll({ type: 'SYNC_EPISODE', season: season, episode: episode });
+    }
+
+    /* setas da tela cheia: episódio anterior / próximo (atravessa temporadas) */
+    function epTarget(dir) {
+      if (!currentItem || !isTvItem(currentItem)) return null;
+      const list = (currentItem.seasons || []).slice().sort((a, b) => a.season - b.season);
+      const cur = list.find(x => x.season === currentSeason);
+      if (dir < 0) {
+        if (currentEpisode > 1) return { season: currentSeason, episode: currentEpisode - 1 };
+        const prev = list.filter(x => x.season < currentSeason).pop();
+        return prev ? { season: prev.season, episode: prev.episodes } : null;
+      }
+      if (!cur || currentEpisode < cur.episodes) return { season: currentSeason, episode: currentEpisode + 1 };
+      const next = list.find(x => x.season > currentSeason);
+      return next ? { season: next.season, episode: 1 } : null;
+    }
+    function stepEpisode(dir) {
+      const t = epTarget(dir);
+      if (!t) return;
+      goToEpisode(t.season, t.episode, true);
+    }
+    function updateFsArrows() {
+      const box = $('playerContainer');
+      if (!box) return;
+      box.classList.toggle('is-tv', !!(currentItem && isTvItem(currentItem)));
+      $('fsPrev').disabled = !epTarget(-1);
+      $('fsNext').disabled = !epTarget(1);
     }
 
     function updateServerButtons() {
@@ -2247,6 +2287,7 @@
     }
     function onFsChange() {
       const on = !!(document.fullscreenElement || document.webkitFullscreenElement);
+      if (on) updateFsArrows();
       const b = $('btnFs');
       if (b) b.textContent = on ? '✕ Sair da tela cheia' : '⛶ Tela cheia';
       if (!on) { try { screen.orientation.unlock(); } catch (e) {} }
@@ -3173,6 +3214,70 @@
     })();
 
     window.addEventListener('beforeunload', () => { try { if (peer) peer.destroy(); } catch (e) {} });
+  </script>
+
+  <!-- ===== AUTO-ATUALIZAÇÃO: detecta mudança no index e limpa o cache do celular ===== -->
+  <style>
+    #updBar { position:fixed; left:12px; right:12px; bottom:calc(14px + env(safe-area-inset-bottom,0px)); z-index:3000; display:none; align-items:center; justify-content:space-between; gap:10px; padding:12px 14px; background:#14141c; color:#fff; border:1px solid rgba(212,175,55,.6); border-radius:14px; box-shadow:0 8px 30px rgba(0,0,0,.7); font-size:13px; }
+    #updBar.show { display:flex; }
+    #updBar button { background:linear-gradient(135deg,#f6d365,#d4af37); color:#0a0a0a; border:none; border-radius:20px; padding:8px 16px; font-weight:800; font-size:12px; cursor:pointer; white-space:nowrap; }
+  </style>
+  <div id="updBar"><span>Nova versão disponível</span><button type="button" onclick="applyUpdate()">Atualizar agora</button></div>
+  <script>
+    (function () {
+      var KEY = 'rf_index_hash', TRIED = 'rf_update_tried';
+      var url = location.origin + location.pathname;
+      var pending = null;
+
+      function hash(str) { // FNV-1a
+        var h = 2166136261;
+        for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+        return (h >>> 0).toString(36) + '-' + str.length;
+      }
+      function get(k, st) { try { return (st || localStorage).getItem(k); } catch (e) { return null; } }
+      function set(k, v, st) { try { (st || localStorage).setItem(k, v); } catch (e) {} }
+
+      function watching() {
+        var w = document.getElementById('watchScreen'), f = document.getElementById('videoIframe');
+        return !!(w && w.style.display === 'flex' && f && f.getAttribute('src'));
+      }
+
+      async function clearAll() {
+        try { if (window.caches) { var ks = await caches.keys(); await Promise.all(ks.map(function (k) { return caches.delete(k); })); } } catch (e) {}
+        try { if (navigator.serviceWorker) { var rs = await navigator.serviceWorker.getRegistrations(); await Promise.all(rs.map(function (r) { return r.unregister(); })); } } catch (e) {}
+      }
+
+      window.applyUpdate = async function () {
+        var h = pending; if (!h) return;
+        set(TRIED, h, sessionStorage);          // evita loop de recarregar
+        set(KEY, h);                             // favoritos/histórico (localStorage) continuam intactos
+        await clearAll();
+        try { await fetch(url, { cache: 'reload' }); } catch (e) {} // força o navegador a trocar a cópia em cache
+        location.reload();
+      };
+
+      async function check() {
+        if (document.hidden || !navigator.onLine) return;
+        try {
+          var r = await fetch(url + (url.indexOf('?') < 0 ? '?' : '&') + '_=' + Date.now(), { cache: 'reload' });
+          if (!r.ok) return;
+          var h = hash(await r.text());
+          var saved = get(KEY);
+          if (!saved) { set(KEY, h); return; }                 // primeira visita: só registra a versão
+          if (saved === h) return;                              // já está atualizado
+          if (get(TRIED, sessionStorage) === h) { set(KEY, h); return; } // já tentou recarregar para essa versão
+          pending = h;
+          if (watching()) { document.getElementById('updBar').classList.add('show'); return; } // não corta o vídeo
+          document.getElementById('updBar').classList.remove('show');
+          window.applyUpdate();
+        } catch (e) {}
+      }
+
+      setTimeout(check, 2000);
+      setInterval(check, 5 * 60 * 1000);
+      document.addEventListener('visibilitychange', function () { if (!document.hidden) check(); });
+      window.addEventListener('online', check);
+    })();
   </script>
 </body>
 </html>
