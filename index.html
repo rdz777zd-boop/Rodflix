@@ -1873,8 +1873,6 @@
     }
 
     function loadPlayer() {
-      const f = $('videoIframe');
-      if (f) f.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-presentation allow-orientation-lock allow-fullscreen');
       $('videoIframe').src = getPlayerURL();
     }
 
