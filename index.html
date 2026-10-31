@@ -987,7 +987,6 @@
         <button type="button" class="server-btn" onclick="setServer(2, true)">Servidor 3 (MyEmbed Brasil)</button>
         <button type="button" class="server-btn" onclick="setServer(3, true)">Servidor 4 (VidLink Multi-Áudio)</button>
         <button type="button" class="server-btn" onclick="setServer(4, true)">Servidor 5 (VidSrc Legendado)</button>
-        <button type="button" class="server-btn" id="dnsHelpBtn" onclick="openDnsHelp()">🛡️ Remover anúncios (DNS AdGuard)</button>
       </div>
     </div>
 
@@ -1876,6 +1875,25 @@
       const f = $('videoIframe');
       if (f) f.removeAttribute('sandbox');
       $('videoIframe').src = getPlayerURL();
+    }
+
+    function openDnsHelp() {
+      const ua = navigator.userAgent || '';
+      const isIOS = /iPhone|iPad|iPod/.test(ua);
+      const isAndroid = /Android/.test(ua);
+      try {
+        if (isAndroid) {
+          window.open('https://play.google.com/store/apps/details?id=com.adguard.android.dns', '_blank');
+          alert('Instale o app "AdGuard DNS" e toque em CONECTAR. Ele leva você direto pra tela de Configurações > Rede > DNS privado do Android e já deixa configurado (sem anúncios nos players).');
+        } else if (isIOS) {
+          window.open('https://apps.apple.com/app/adguard-dns/id1434604507', '_blank');
+          alert('Instale o app "AdGuard DNS" e toque em ATIVAR ADGUARD DNS. O próprio app abre a tela de Ajustes do iPhone pra você confirmar (não dá pra abrir os Ajustes direto pelo navegador).');
+        } else {
+          alert('Configure o DNS 94.140.14.14 e 94.140.15.15 (AdGuard) nas configurações de rede do seu dispositivo ou roteador.');
+        }
+      } catch (e) {
+        alert('Configure o DNS 94.140.14.14 e 94.140.15.15 (AdGuard) nas configurações de rede do seu dispositivo.');
+      }
     }
 
     function openDirectLink() {
