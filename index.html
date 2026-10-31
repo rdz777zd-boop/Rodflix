@@ -1749,6 +1749,7 @@
 
       $('homeScreen').style.display = 'none';
       $('watchScreen').style.display = 'flex';
+      try { if (!(history.state && history.state.rf === 'watch')) history.pushState({ rf: 'watch' }, ''); } catch (e) {}
       $('watchScreen').scrollTop = 0;
 
       const sSec = $('seasonSection');
@@ -1897,12 +1898,6 @@
     }
 
     function goHome() {
-      if (history.state && history.state.rf === 'watch') { history.back(); return; }
-      showHome();
-    }
-
-    function showHome() {
-      try { localStorage.removeItem('rf_resume'); } catch (e) {}
       $('videoIframe').src = '';
       $('watchScreen').style.display = 'none';
       $('homeScreen').style.display = 'block';
