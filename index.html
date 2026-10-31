@@ -1877,25 +1877,6 @@
       $('videoIframe').src = getPlayerURL();
     }
 
-    function openDnsHelp() {
-      const ua = navigator.userAgent || '';
-      const isIOS = /iPhone|iPad|iPod/.test(ua);
-      const isAndroid = /Android/.test(ua);
-      try {
-        if (isAndroid) {
-          window.open('https://play.google.com/store/apps/details?id=com.adguard.android.dns', '_blank');
-          alert('Instale o app "AdGuard DNS" e toque em CONECTAR. Ele leva você direto pra tela de Configurações > Rede > DNS privado do Android e já deixa configurado (sem anúncios nos players).');
-        } else if (isIOS) {
-          window.open('https://apps.apple.com/app/adguard-dns/id1434604507', '_blank');
-          alert('Instale o app "AdGuard DNS" e toque em ATIVAR ADGUARD DNS. O próprio app abre a tela de Ajustes do iPhone pra você confirmar (não dá pra abrir os Ajustes direto pelo navegador).');
-        } else {
-          alert('Configure o DNS 94.140.14.14 e 94.140.15.15 (AdGuard) nas configurações de rede do seu dispositivo ou roteador.');
-        }
-      } catch (e) {
-        alert('Configure o DNS 94.140.14.14 e 94.140.15.15 (AdGuard) nas configurações de rede do seu dispositivo.');
-      }
-    }
-
     function openDirectLink() {
       const url = getPlayerURL();
       if (url) window.open(url, '_blank');
@@ -2621,7 +2602,7 @@
     }
 
     /* ===== SEM ANÚNCIOS: o player roda "isolado" e não consegue abrir pop-ups, novas abas nem redirecionar a página ===== */
-    /* AD_SANDBOX_DUP_6 */
+    /* ZZFOUND1_AD_SANDBOX_DUP_6 */
     const AD_SANDBOX_X6 = 'allow-scripts allow-same-origin allow-forms allow-presentation allow-orientation-lock';
     window.__adBlock = (function () { try { return localStorage.getItem('rf_adblock') !== 'off'; } catch (e) { return true; } })();
 
