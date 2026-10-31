@@ -414,6 +414,15 @@
     }
     .btn-close:active { transform: scale(0.9); }
 
+    /* ===== MINI PLAYER FLUTUANTE (pop-up do vídeo) ===== */
+    .mini-bar { display:none; }
+    #watchScreen.mini { inset:auto 12px calc(12px + env(safe-area-inset-bottom,0px)) auto; width:min(280px,66vw); height:auto; overflow:visible; background:transparent; z-index:1500; border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,.7); border:1px solid rgba(212,175,55,.45); }
+    #watchScreen.mini > :not(.player-box) { display:none !important; }
+    #watchScreen.mini .player-box { height:auto; min-height:0; max-height:none; max-width:none; margin:0; border-radius:12px; overflow:hidden; }
+    #watchScreen.mini #videoIframe { height:calc((min(280px,66vw)) * .5625); }
+    #watchScreen.mini .mini-bar { display:flex; align-items:center; justify-content:space-between; height:30px; padding:0 6px 0 10px; background:#14141c; color:#f6d365; font-size:12px; cursor:grab; touch-action:none; user-select:none; -webkit-user-select:none; }
+    #watchScreen.mini .mini-bar button { background:none; border:none; color:#f6d365; font-size:16px; width:30px; height:30px; cursor:pointer; }
+    #watchScreen.mini .fs-exit { display:none !important; }
     .player-box {
       width: 100%;
       height: 52vh;
