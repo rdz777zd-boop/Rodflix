@@ -2612,8 +2612,8 @@
       if (b) b.innerText = window.__adBlock ? 'Bloqueio de anúncios: ATIVO' : 'Bloqueio de anúncios: DESLIGADO';
     }
 
-    /* toggleAdBlock removido 6 */
-    function toggleAdBlock_DEPRECATED6() {
+    /* toggleAdBlock removido 7 */
+    function toggleAdBlock_DEPRECATED7() {
       window.__adBlock = !window.__adBlock;
       try { localStorage.setItem('rf_adblock', window.__adBlock ? 'on' : 'off'); } catch (e) {}
       applyAdBlock();
