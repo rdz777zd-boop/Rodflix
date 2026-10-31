@@ -956,10 +956,6 @@
     </div>
 
     <div class="player-box" id="playerContainer">
-      <div class="mini-bar" id="miniBar">
-        <span id="miniTitle">Reproduzindo</span>
-        <span><button type="button" aria-label="Expandir" onclick="expandMini()">⤢</button><button type="button" aria-label="Fechar" onclick="closeMini()">✕</button></span>
-      </div>
       <iframe id="videoIframe" src="" allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowfullscreen webkitallowfullscreen mozallowfullscreen referrerpolicy="origin"></iframe>
       <button type="button" id="btnRodFs" onclick="rodFullscreen()" aria-label="Tela cheia" style="position:absolute;top:8px;right:8px;z-index:5;width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,.35);background:rgba(0,0,0,.55);color:#fff;font-size:20px;line-height:1;cursor:pointer;">&#x26F6;</button>
       <style>
@@ -1925,6 +1921,35 @@
     }
 
     function goHome() {
+      const ws = $('watchScreen');
+      if (ws.classList.contains('mini')) { window.scrollTo({ top: 0, behavior: 'smooth' }); return; }
+      if (ws.style.display === 'flex' && $('videoIframe').getAttribute('src')) { minimizePlayer(); return; }
+      closeMini();
+    }
+
+    /* Mini player: o vídeo continua tocando num pop-up flutuante */
+    function minimizePlayer() {
+      if (document.fullscreenElement || document.webkitFullscreenElement) {
+        try { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch (e) {}
+      }
+      $('miniTitle').textContent = $('nowPlayingTitle').textContent;
+      $('watchScreen').classList.add('mini');
+      $('homeScreen').style.display = 'block';
+      if (heroList.length && $('bannerHero').style.display !== 'none') showHero(heroIdx);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    function resetMiniPos() {
+      const ws = $('watchScreen');
+      ws.classList.remove('mini');
+      ws.style.left = ws.style.top = ws.style.right = ws.style.bottom = '';
+    }
+    function expandMini() {
+      resetMiniPos();
+      $('homeScreen').style.display = 'none';
+      $('watchScreen').scrollTop = 0;
+    }
+    function closeMini() {
+      resetMiniPos();
       $('videoIframe').src = '';
       $('watchScreen').style.display = 'none';
       $('homeScreen').style.display = 'block';
@@ -1932,6 +1957,27 @@
       setPlayState(false);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
+    (function () {
+      const bar = document.getElementById('miniBar');
+      let drag = null;
+      bar.addEventListener('pointerdown', (e) => {
+        if (e.target.closest('button')) return;
+        const ws = $('watchScreen'), r = ws.getBoundingClientRect();
+        drag = { dx: e.clientX - r.left, dy: e.clientY - r.top, w: r.width, h: r.height };
+        ws.style.right = ws.style.bottom = 'auto';
+        ws.style.left = r.left + 'px'; ws.style.top = r.top + 'px';
+        bar.setPointerCapture(e.pointerId);
+      });
+      bar.addEventListener('pointermove', (e) => {
+        if (!drag) return;
+        const ws = $('watchScreen');
+        ws.style.left = Math.max(0, Math.min(innerWidth - drag.w, e.clientX - drag.dx)) + 'px';
+        ws.style.top = Math.max(0, Math.min(innerHeight - drag.h, e.clientY - drag.dy)) + 'px';
+      });
+      const end = () => { drag = null; };
+      bar.addEventListener('pointerup', end);
+      bar.addEventListener('pointercancel', end);
+    })();
 
     /* ============================================================
        CATÁLOGO
