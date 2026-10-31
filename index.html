@@ -1872,15 +1872,7 @@
       }
     }
 
-    function saveResume() {
-      try {
-        if (!currentItem) return;
-        localStorage.setItem('rf_resume', JSON.stringify({ item: currentItem, season: currentSeason, episode: currentEpisode, server: currentServer, t: Date.now() }));
-      } catch (e) {}
-    }
-
     function loadPlayer() {
-      saveResume();
       $('videoIframe').src = getPlayerURL();
     }
 
@@ -2578,6 +2570,49 @@
     })();
 
     window.addEventListener('beforeunload', () => { try { if (peer) peer.destroy(); } catch (e) {} });
+
+    /* ===== Botao voltar do celular + retomar ao voltar da pagina de anuncio ===== */
+    const __rfLoadPlayer = loadPlayer;
+    loadPlayer = function () {
+      try {
+        if (currentItem) localStorage.setItem('rf_resume', JSON.stringify({ item: currentItem, season: currentSeason, episode: currentEpisode, server: currentServer, t: Date.now() }));
+      } catch (e) {}
+      return __rfLoadPlayer.apply(this, arguments);
+    };
+
+    const __rfStart = startWatching;
+    startWatching = function () {
+      const p = __rfStart.apply(this, arguments);
+      try { if (!(history.state && history.state.rf === 'watch')) history.pushState({ rf: 'watch' }, ''); } catch (e) {}
+      return p;
+    };
+
+    const __rfGoHome = goHome;
+    function showHome() {
+      try { localStorage.removeItem('rf_resume'); } catch (e) {}
+      __rfGoHome();
+    }
+    goHome = function () {
+      if (history.state && history.state.rf === 'watch') { history.back(); return; }
+      showHome();
+    };
+
+    window.addEventListener('popstate', () => {
+      const w = $('watchScreen');
+      if (w && w.style.display === 'flex' && !(history.state && history.state.rf === 'watch')) showHome();
+    });
+
+    (function resumeWatch() {
+      try {
+        const onWatch = !!(history.state && history.state.rf === 'watch');
+        if (!onWatch) return;
+        let r = null;
+        try { r = JSON.parse(localStorage.getItem('rf_resume') || 'null'); } catch (e) {}
+        if (!r || !r.item || Date.now() - r.t > 30 * 60 * 1000) { history.replaceState(null, ''); return; }
+        currentServer = r.server || 0;
+        startWatching(r.item, false, { season: r.season, episode: r.episode });
+      } catch (e) {}
+    })();
   </script>
 </body>
 </html>
