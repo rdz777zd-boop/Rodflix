@@ -649,40 +649,6 @@
     }
     button.season-tab.active, button.ep-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 
-    /* Cartões de episódio (foto + título) */
-    button.ep-btn.ep-card {
-      flex: 0 0 168px;
-      width: 168px;
-      padding: 0;
-      text-align: left;
-      white-space: normal;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-    }
-    .ep-thumb {
-      position: relative;
-      width: 100%;
-      aspect-ratio: 16 / 9;
-      background: linear-gradient(135deg, #1c1c26, #0d0d12);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: rgba(255,255,255,.25);
-      font-size: 22px;
-      font-weight: 900;
-      overflow: hidden;
-    }
-    .ep-thumb img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
-    .ep-info { padding: 7px 9px 9px; display: flex; flex-direction: column; gap: 2px; min-height: 52px; }
-    .ep-num { font-size: 11px; font-weight: 900; color: #f6d365; letter-spacing: .3px; }
-    .ep-name {
-      font-size: 12px; font-weight: 700; color: #ddd; line-height: 1.3;
-      display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-    }
-    button.ep-btn.ep-card.active .ep-num, button.ep-btn.ep-card.active .ep-name { color: #fff; }
-    button.ep-btn.ep-card.active .ep-thumb { box-shadow: inset 0 0 0 2px #f6d365; }
-
     .synopsis-box {
       padding: 14px 18px;
       background: var(--bg);
@@ -2233,16 +2199,81 @@
       const sData = (seasons && seasons.find(s => s.season === currentSeason)) || { episodes: 24 };
 
       const frag = document.createDocumentFragment();
+      const cards = [];
       for (let i = 1; i <= sData.episodes; i++) {
         const btn = document.createElement('button');
         btn.type = 'button';
-        btn.className = `ep-btn ${i === currentEpisode ? 'active' : ''}`;
-        btn.innerText = `Ep ${i}`;
+        btn.className = `ep-btn ep-card ${i === currentEpisode ? 'active' : ''}`;
+
+        const thumb = document.createElement('div');
+        thumb.className = 'ep-thumb';
+        thumb.textContent = String(i);
+        const info = document.createElement('div');
+        info.className = 'ep-info';
+        const num = document.createElement('span');
+        num.className = 'ep-num';
+        num.textContent = `Episódio ${i}`;
+        const name = document.createElement('span');
+        name.className = 'ep-name';
+        info.appendChild(num);
+        info.appendChild(name);
+        btn.appendChild(thumb);
+        btn.appendChild(info);
+
         btn.onclick = () => goToEpisode(currentSeason, i, true);
         frag.appendChild(btn);
+        cards.push({ ep: i, thumb, name });
       }
       grid.appendChild(frag);
       $('episodeCounter').innerText = `Episódio ${currentEpisode} de ${sData.episodes}`;
+
+      // centraliza o episódio atual na lista
+      const act = grid.querySelector('.ep-card.active');
+      if (act) {
+        grid.scrollLeft += (act.getBoundingClientRect().left - grid.getBoundingClientRect().left) - (grid.clientWidth - act.offsetWidth) / 2;
+      }
+
+      // busca título e foto de cada episódio no TMDB
+      const mySeason = currentSeason;
+      const myItem = currentItem;
+      getSeasonEps(mySeason).then(map => {
+        if (!map || currentItem !== myItem || currentSeason !== mySeason || !grid.isConnected) return;
+        if (!cards.length || !cards[0].thumb.isConnected) return;
+        cards.forEach(c => {
+          const info = map[c.ep];
+          if (!info) return;
+          if (info.name) c.name.textContent = info.name;
+          if (info.still) {
+            const img = document.createElement('img');
+            img.loading = 'lazy';
+            img.alt = '';
+            img.src = `https://image.tmdb.org/t/p/w300${info.still}`;
+            c.thumb.textContent = '';
+            c.thumb.appendChild(img);
+          }
+          if (c.ep === currentEpisode && info.name) {
+            $('nowPlayingSubtitle').innerText = `Temporada ${currentSeason} • Episódio ${currentEpisode} • ${info.name}`;
+          }
+        });
+      });
+    }
+
+    const EP_CACHE = {};
+    async function getSeasonEps(season) {
+      const id = currentItem && currentItem.id;
+      if (!id) return null;
+      const key = id + '_' + season;
+      if (EP_CACHE[key]) return EP_CACHE[key];
+      try {
+        const res = await fetch(`${TMDB_BASE}/tv/${id}/season/${season}?api_key=${TMDB_KEY}&language=pt-BR`);
+        const d = await res.json();
+        const map = {};
+        (d.episodes || []).forEach(e => {
+          map[e.episode_number] = { name: e.name, still: e.still_path };
+        });
+        EP_CACHE[key] = map;
+        return map;
+      } catch (e) { return null; }
     }
 
     function goToEpisode(season, episode, broadcast) {
